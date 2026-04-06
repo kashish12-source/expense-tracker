@@ -1,13 +1,11 @@
-
-from fastapi import FastAPI,Depends, HTTPException
-from . import schemas,models
-from .database import engine ,SessionLocal
+from fastapi import FastAPI, HTTPException,Depends
 from sqlalchemy.orm import Session
-
+from .import models,schemas,crud
+from .database import SessionLocal,engine
 models.Base.metadata.create_all(bind=engine)
 
-app=FastAPI()
 
+app=FastAPI()
 def get_db():
     db=SessionLocal()
     try:
@@ -15,51 +13,60 @@ def get_db():
     finally:
         db.close()
 
-@app.post("/category/")
-def create_category(category:schemas.CreateCategory,db:Session=Depends(get_db)):
-    new_category=models.Category(category_name=category.name)
-    db.add(new_category)
-    db.commit()
-    db.refresh(new_category)
-    return new_category
-
-@app.get("/category/")
-def read_category(db:Session=Depends(get_db)):
+@app.post("/user/",response_model=schemas.ResponseCategory)
+def post_category(user:schemas.CreateCategory,db:Session=Depends(get_db)):
+    return crud.create_category(db,user)
     
+@app.post("/users/",response_model=schemas.ResponseExpense)
+def post_expense(user:schemas.CreateExpense,db:Session=Depends(get_db)):
+    return crud.create_expense(db,user)
 
+@app.get("/user/{id}")
+def get_category(id:int , db:Session=Depends(get_db)):
+    user= crud.get_category(db,id)
+    if user is None:
+        raise HTTPException(status_code=404,detail="id not found")
 
-    return db.query(models.Category).all()
-    
-@app.post("/expenses/")
-def create_expense(expense:schemas.CreateExpense,db:Session=Depends(get_db)):
-    new_expense=models.Expenses(**expense.dict())
-    db.add(new_expense)
+    return user
+
+@app.get("/users/{id}")
+def get_expense(id:int , db:Session=Depends(get_db)):
+    user=crud.get_expense(db,id)
+    if user is None:
+        raise HTTPException(status_code=400,detail="id not found")
+    return user
+
+@app.delete("/user/{id}")
+def delete_category(id:int ,db:Session=Depends(get_db)):
+    user=crud.delete_category(db,id)
+    if user is None:
+        raise HTTPException(status_code=400,detail="id not found")
+    return user
+
+@app.delete("/users/{id}")
+def delete_expense(id:int ,db:Session=Depends(get_db)):
+    user=crud.delete_expense(db,id)
+    if user is None:
+        raise HTTPException (status_code=404,detail="id not found")
+    return user
+
+@app.put("/user/{id}",response_model=schemas.ResponseCategory)
+def update_category(id:int,user:schemas.CreateCategory ,db:Session=Depends(get_db)):
+    user=crud.update_category(db,id,user)
+    if user is None:
+        raise HTTPException(status_code=400,detail="id is not found")
+
+    return user
+
+@app.put("/users/{id}",response_model=schemas.ResponseExpense)
+
+def update_exp(id:int ,user:schemas.CreateExpense,db:Session=Depends(get_db)):
+    db_update=crude.update_expense(db,id,user)
+    if db_update is None:
+        raise HTTPException(status_code=404,detail="id not found")
+    db_update.exp_name=user.exp_name
+    db_update.exp_ammount=user.exp_ammount
+    db_update.category_id=user.category_id
     db.commit()
-    db.refresh(new_expense)
-    return new_expense
-
-
-@app.get("/expenses/")
-def get_expense(db:Session=Depends(get_db)):
-    return db.query(models.Expenses).all()
-
-
-@app.put("/expenses/{id}")
-def update_expenses(id:int , expense:schemas.CreateExpense,db:Session=Depends(get_db)):
-    if id is None:
-        raise HTTPException(status_code=404,detail="id is required to update the expenses")
-    up=db.query(models.Expenses).filter(models.Expenses.expense_id==id).first()
-    up.expense_title=expense.title
-    up.expense_amount=expense.amount   
-    up.category_id=expense.category_id
-    db.commit()
-    return{"message":"expenses are updated"}
-
-@app.delete("/expenses/{id}/")
-def delete_expense(id:int , db:Session=Depends(get_db)):
-    if id is None:
-        raise HTTPException(status_code=404,detail="id is required")
-    exp=db.query(models.Expenses).filter(models.Expenses.expense_id==id).first()
-    db.delete(exp)
-    db.commit()
-    
+    db.refresh(db_update)
+    return db_update
