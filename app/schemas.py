@@ -14,9 +14,14 @@ class CreateUser(BaseModel):
     email:EmailStr
     password:str
 
-class Login(BaseModel):
+class UserLogin(BaseModel):
     email:EmailStr
     password:str
+
+class Token(BaseModel):
+    access_token:str
+    token_type:str
+    
     
 class ResponseCategory(CreateCategory):
     id:int
@@ -31,9 +36,5 @@ class ResponseExpense(CreateExpense):
     class Config:
         from_attributes = True
 
-class ResponseUser(CreateUser):
-    email:EmailStr
 
-    class Config:
-        from_attributes=True
     

@@ -14,11 +14,11 @@ class Expense(Base):
     exp_ammount=Column(Integer)
     category_id=Column(Integer, ForeignKey("category.id"))
 
+
+
 class User(Base):
-    __tablename__="createuser"
-    user_id=Column(Integer, primary_key=True,index=True)
-    email=Column(String,unique=True,index=True)
-    password=Column(String)
+    __tablename__ = "user"
 
-
-
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    password = Column(String)

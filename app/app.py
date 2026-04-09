@@ -2,16 +2,29 @@ from fastapi import FastAPI, Depends , HTTPException
 from . import models,schemas,crud
 from sqlalchemy.orm import Session
 from .database import SessionLocal,engine
+from .utils import hashed_password,verify_password
+from .auth import create_token,verify_token
 
+# for authentication
+
+
+
+
+
+app=FastAPI()
 
 models.Base.metadata.create_all(bind=engine)
-app=FastAPI()
+    
+
 def get_db():
     db=SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+
+# part of auth
     
 
 @app.post("/category/",response_model=schemas.ResponseCategory)
@@ -61,8 +74,34 @@ def delete_expense(id :int , db:Session=Depends(get_db)):
         raise HTTPException (status_code=400,detail="id not found")
     return user
 
-@app.post("/user/",response_model=schemas.ResponseUser)
-def singup(user:schemas.CreateUser,db:Session=Depends(get_db)): 
-    return crud.create_user(db,user)
+@app.post("/singup")
+def singup(user:schemas.CreateUser,db:Session=Depends(get_db)):
+    existing_user=db.query(models.User).filter(models.User.email==user.email).first()
 
-@app.get("/user/")
+    if existing_user:
+        raise HTTPException(status_code=400,detail="Email already exist")
+    new_user=models.User(
+        email=user.email,
+        password=hashed_password(user.password)
+        )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"message":"created"}
+
+@app.post("/login",response_model=schemas.Token)
+def login(user:schemas.UserLogin,db:Session=Depends(get_db)):
+    db_user=db.query(models.User).filter(models.User.email==user.email).first()
+    if not db_user or not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_token({"sub": db_user.email})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
+@app.get("/protected")
+def protecte(current_user:str=Depends(verify_token)):
+    return{"message":f"hello {current_user}"}
+
